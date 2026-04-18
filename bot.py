@@ -357,8 +357,13 @@ async def handle_file(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         if msg.document:
             tg_file = await msg.document.get_file()
-            name = msg.document.file_name or "document"
-            dest = uploads / f"{ts}_{name}"
+            raw_name = msg.document.file_name or "document"
+            safe_name = os.path.basename(raw_name).lstrip(".") or "document"
+            if "/" in safe_name or "\\" in safe_name or ".." in safe_name:
+                safe_name = "document"
+            dest = uploads / f"{ts}_{safe_name}"
+            if not dest.resolve().is_relative_to(uploads.resolve()):
+                raise ValueError("upload path escapes uploads dir")
         elif msg.photo:
             largest = msg.photo[-1]
             tg_file = await largest.get_file()
