@@ -31,8 +31,13 @@ ALLOWED_CHAT_ID_RAW = os.getenv("ALLOWED_CHAT_ID")
 TMUX_SESSION = os.getenv("TMUX_SESSION", "claude-bridge")
 PROJECT_DIR = os.path.expanduser(os.getenv("PROJECT_DIR", "~/projects/qareen"))
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "default").strip() or "default"
+ON_BOT_EXIT = os.getenv("ON_BOT_EXIT", "keep").strip().lower() or "keep"
 OUTPUT_STABLE_SECONDS = float(os.getenv("OUTPUT_STABLE_SECONDS", "3"))
 POLL_INTERVAL_SECONDS = float(os.getenv("POLL_INTERVAL_SECONDS", "1.0"))
+
+if ON_BOT_EXIT not in ("keep", "kill_with_bot"):
+    print(f"ON_BOT_EXIT must be 'keep' or 'kill_with_bot' (got {ON_BOT_EXIT!r})", file=sys.stderr)
+    sys.exit(1)
 
 if not TOKEN:
     print("TELEGRAM_BOT_TOKEN is required", file=sys.stderr)
@@ -409,11 +414,31 @@ async def post_init(app: Application) -> None:
                 )
         except Exception:
             log.exception("failed to send startup banner")
-    log.info("bot ready; session=%s project=%s model=%s", TMUX_SESSION, PROJECT_DIR, CLAUDE_MODEL)
+    log.info(
+        "bot ready; session=%s project=%s model=%s on_exit=%s",
+        TMUX_SESSION, PROJECT_DIR, CLAUDE_MODEL, ON_BOT_EXIT,
+    )
+
+
+async def post_shutdown(app: Application) -> None:
+    if ON_BOT_EXIT != "kill_with_bot":
+        return
+    try:
+        if await session_exists():
+            await run_tmux("kill-session", "-t", TMUX_SESSION)
+            log.info("killed tmux session %s on bot exit", TMUX_SESSION)
+    except Exception:
+        log.exception("failed to kill tmux session on shutdown")
 
 
 def main() -> None:
-    app = Application.builder().token(TOKEN).post_init(post_init).build()
+    app = (
+        Application.builder()
+        .token(TOKEN)
+        .post_init(post_init)
+        .post_shutdown(post_shutdown)
+        .build()
+    )
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("cancel", cmd_cancel))

@@ -119,11 +119,14 @@ ALLOWED_CHAT_ID=987654321
 TMUX_SESSION=claude-bridge
 PROJECT_DIR=/Users/YOU/projects/sandbox
 CLAUDE_MODEL=default
+ON_BOT_EXIT=keep
 OUTPUT_STABLE_SECONDS=3
 POLL_INTERVAL_SECONDS=1.0
 ```
 
 **`CLAUDE_MODEL`** — pins the model Claude Code launches with. Accepted values include `default` (use your Anthropic account default; the `--model` flag is not passed), `sonnet`, `opus`, `haiku`, `opusplan` (Opus in plan mode, Sonnet for execution), `sonnet[1m]`, `opus[1m]`, `best`, or a full model ID like `claude-sonnet-4-6`. Invalid values (anything with shell metacharacters) are logged and ignored; the session launches on your account default. Takes effect on session creation — change the value and `/restart` from Telegram to apply.
+
+**`ON_BOT_EXIT`** — what to do with the tmux session when the bot process exits. `keep` (default) leaves the session running so you can restart the bot without losing the Claude conversation. `kill_with_bot` kills the session when the bot receives SIGINT/SIGTERM. `SIGKILL` (force-kill) cannot be intercepted — the session survives regardless of this setting if the bot is force-killed.
 
 **Critical choice: `PROJECT_DIR`.** The Claude session runs with `--dangerously-skip-permissions`, so any message you send can read/write/delete anything under this directory. Rules:
 
