@@ -39,20 +39,49 @@ If `claude` is not on `PATH`, fix that before continuing — the bot will fail t
 
 ## 2. Telegram setup
 
-### 2a. Create the bot
+### 2a. Enable two-step verification on your Telegram account (required first)
+
+The bot's only authorization check is that the sender's chat ID matches `ALLOWED_CHAT_ID`. If your Telegram account is taken over (SIM-swap, session hijack), the attacker passes that check and gets full access to your Mac through Claude. Two-step verification is the only thing that stops this.
+
+**Before creating the bot:**
+
+1. Telegram → Settings → Privacy and Security → Two-Step Verification.
+2. Set a strong password and a recovery email.
+3. Confirm the recovery email link arrives and works.
+
+Do not proceed until this is active.
+
+### 2b. Create the bot
 
 1. Open Telegram, message [@BotFather](https://t.me/BotFather).
 2. Send `/newbot`.
-3. Pick a display name (e.g. `My Claude Bridge`) and a username ending in `bot` (e.g. `myclaudebridge_bot`).
+3. Pick a display name (e.g. `My Claude Bridge`) and a non-descriptive username with random suffixes (e.g. `cb_a3f9e2_bot`). Do not use an obvious name like `claudebridge_bot` — the username is publicly searchable.
 4. BotFather replies with an HTTP API token like `1234567890:ABC-DEF...`. **Save it.** This is `TELEGRAM_BOT_TOKEN`.
-5. Recommended: send `/setprivacy` → choose your bot → `Enable`. Keeps the bot out of groups.
-6. Recommended: send `/setjoingroups` → `Disable`.
+5. **Required:** send `/setprivacy` → choose your bot → `Enable`. Prevents the bot from reading all messages in groups it is added to.
+6. **Required:** send `/setjoingroups` → `Disable`. Prevents the bot from being added to groups at all.
 
-### 2b. Get your chat ID
+### 2c. Get your chat ID
 
-1. Open Telegram, message [@userinfobot](https://t.me/userinfobot).
-2. It replies with your numeric ID (e.g. `987654321`). **Save it.** This is `ALLOWED_CHAT_ID`.
-3. Start a conversation with your new bot (search for its username) and send `/start`. The bot won't respond yet, but Telegram must have an existing chat before the bot can DM you.
+Do not send your identity to a third-party bot. Use the Telegram API directly:
+
+1. Search for your bot's username in Telegram and send it `/start`. The bot won't respond yet, but this creates the chat.
+2. In a terminal (after completing §4 Configure and setting `TELEGRAM_BOT_TOKEN` in `.env`):
+   ```bash
+   source .venv/bin/activate
+   python3 -c "
+   import os, urllib.request, json
+   from dotenv import load_dotenv
+   load_dotenv()
+   token = os.environ['TELEGRAM_BOT_TOKEN']
+   data = json.loads(urllib.request.urlopen(
+       f'https://api.telegram.org/bot{token}/getUpdates'
+   ).read())
+   for u in data.get('result', []):
+       c = u.get('message', {}).get('chat', {})
+       print(c.get('id'), c.get('type'), c.get('username', c.get('first_name')))
+   "
+   ```
+3. The number beside your username is `ALLOWED_CHAT_ID`. Set it in `.env`.
 
 ---
 
@@ -60,7 +89,7 @@ If `claude` is not on `PATH`, fix that before continuing — the bot will fail t
 
 ```bash
 mkdir -p ~/code && cd ~/code
-git clone <this-repo-url> claude-bridge
+git clone https://github.com/kreig133/Claude-Telegram claude-bridge
 cd claude-bridge
 python3 -m venv .venv
 source .venv/bin/activate
@@ -82,7 +111,7 @@ python -c "import telegram, dotenv; print('ok')"
 cp .env.example .env
 ```
 
-Edit `.env` with your real values:
+Edit `.env` with your real values. Set `TELEGRAM_BOT_TOKEN` first — you need it to run the `getUpdates` snippet in §2c that gives you `ALLOWED_CHAT_ID`.
 
 ```
 TELEGRAM_BOT_TOKEN=1234567890:ABC-DEF-your-token-here
@@ -318,7 +347,7 @@ These accumulate forever. Prune manually.
 | `⚠️ tmux error: tmux binary not found on PATH` | tmux not installed or launchd `PATH` wrong | `brew install tmux`; fix plist `PATH` |
 | `⏳ (no new output — Claude may still be thinking...)` | Output didn't stabilize within `OUTPUT_STABLE_SECONDS` because Claude is still streaming | Send `/status` to peek; or bump `OUTPUT_STABLE_SECONDS` for verbose sessions |
 | `⏰ (timed out waiting for stable output...)` | Hit the 5-minute hard cap | Reply contains whatever was captured. Send another message to continue; or `/cancel` and retry |
-| Bot doesn't reply to you but logs show `dropped message from disallowed chat <id>` | `ALLOWED_CHAT_ID` doesn't match your Telegram ID | Re-check with @userinfobot; update `.env`; restart |
+| Bot doesn't reply to you but logs show `dropped message from disallowed chat <id>` | `ALLOWED_CHAT_ID` doesn't match your Telegram ID | Re-run the `getUpdates` snippet from §2c; update `.env`; restart |
 | Reply contains garbled box characters or mojibake | ANSI stripping didn't catch a rare sequence | Report an issue with a sample; workaround is `/clear` to reset the UI state |
 | Reply formatting is broken with `Bad Request: can't parse entities` | A message somehow contains unescaped HTML that slipped past `html.escape` | Should not happen; file a bug with the triggering input |
 | Multiple bot processes running | Forgot to stop the old one before starting new | `pgrep -fl bot.py`; kill duplicates; Telegram rejects concurrent long-polls with `Conflict: terminated by other getUpdates request` — visible in log |
@@ -350,12 +379,14 @@ Uploaded files under `PROJECT_DIR/uploads/` are **not** removed automatically �
 
 Copy, tick as you go:
 
+- [ ] Telegram two-step verification enabled (§2a)
 - [ ] `python3 --version` ≥ 3.11
 - [ ] `tmux -V` ≥ 3.3
 - [ ] `claude --version` works
-- [ ] Bot created with @BotFather; token saved
-- [ ] `ALLOWED_CHAT_ID` obtained from @userinfobot
-- [ ] Repo cloned, venv created, `pip install -r requirements.txt` succeeded
+- [ ] Bot created with @BotFather; non-descriptive username chosen; token saved
+- [ ] `/setprivacy Enable` and `/setjoingroups Disable` applied in BotFather
+- [ ] `ALLOWED_CHAT_ID` obtained via `getUpdates` (no third-party bot)
+- [ ] Repo cloned over HTTPS; venv created; `pip install -r requirements.txt` succeeded
 - [ ] `.env` populated; `chmod 600 .env` applied
 - [ ] `PROJECT_DIR` points at a git-tracked sandbox, not `$HOME`
 - [ ] First foreground run posts a banner to Telegram
