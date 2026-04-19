@@ -34,6 +34,7 @@ CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "default").strip() or "default"
 ON_BOT_EXIT = os.getenv("ON_BOT_EXIT", "keep").strip().lower() or "keep"
 OUTPUT_STABLE_SECONDS = float(os.getenv("OUTPUT_STABLE_SECONDS", "3"))
 POLL_INTERVAL_SECONDS = float(os.getenv("POLL_INTERVAL_SECONDS", "1.0"))
+MAX_OUTPUT_CHARS = int(os.getenv("MAX_OUTPUT_CHARS", str(64 * 1024)))
 
 if ON_BOT_EXIT not in ("keep", "kill_with_bot"):
     print(f"ON_BOT_EXIT must be 'keep' or 'kill_with_bot' (got {ON_BOT_EXIT!r})", file=sys.stderr)
@@ -279,6 +280,9 @@ async def handle_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not new.strip():
             await reply_plain(update, "⏳ (no new output — Claude may still be thinking; try /status)")
             return
+        if len(new) > MAX_OUTPUT_CHARS:
+            new = new[-MAX_OUTPUT_CHARS:]
+            await reply_plain(update, f"⚠️ output clipped to last {MAX_OUTPUT_CHARS} chars")
         await reply_pre(update, new)
     except RuntimeError as e:
         log.error("tmux error in handle_text: %s", e)
