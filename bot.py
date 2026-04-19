@@ -157,10 +157,13 @@ def strip_trailing_prompt(s: str) -> str:
         if not last:
             lines.pop()
             continue
-        if last.startswith(">"):
+        if last.startswith(">") or last.startswith("❯"):
             lines.pop()
             continue
         if set(last) <= BOX_CHARS:
+            lines.pop()
+            continue
+        if last.lstrip().startswith("⏵"):
             lines.pop()
             continue
         break
