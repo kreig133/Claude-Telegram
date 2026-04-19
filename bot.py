@@ -171,14 +171,27 @@ def strip_trailing_prompt(s: str) -> str:
 
 
 def diff_output(before: str, after: str) -> str:
-    if after.startswith(before):
-        return after[len(before):]
-    tail = before[-500:] if len(before) > 500 else before
-    if tail:
-        idx = after.rfind(tail)
-        if idx >= 0:
-            return after[idx + len(tail):]
-    return after
+    # tmux capture-pane pads lines to terminal width with spaces, so
+    # character-level comparison is unreliable. Compare line by line
+    # with trailing whitespace stripped to find the shared prefix, then
+    # return only the lines that follow it.
+    before_lines = [l.rstrip() for l in before.split("\n")]
+    after_lines  = after.split("\n")
+    after_cmp    = [l.rstrip() for l in after_lines]
+
+    # Exclude trailing blank lines from before when measuring the prefix
+    n = len(before_lines)
+    while n > 0 and not before_lines[n - 1]:
+        n -= 1
+
+    shared = 0
+    for i in range(min(n, len(after_cmp))):
+        if before_lines[i] == after_cmp[i]:
+            shared = i + 1
+        else:
+            break
+
+    return "\n".join(after_lines[shared:])
 
 
 def chunk_text(text: str, max_len: int = MAX_CHUNK) -> list[str]:
