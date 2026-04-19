@@ -118,9 +118,12 @@ TELEGRAM_BOT_TOKEN=1234567890:ABC-DEF-your-token-here
 ALLOWED_CHAT_ID=987654321
 TMUX_SESSION=claude-bridge
 PROJECT_DIR=/Users/YOU/projects/sandbox
+CLAUDE_MODEL=default
 OUTPUT_STABLE_SECONDS=3
 POLL_INTERVAL_SECONDS=1.0
 ```
+
+**`CLAUDE_MODEL`** — pins the model Claude Code launches with. Accepted values include `default` (use your Anthropic account default; the `--model` flag is not passed), `sonnet`, `opus`, `haiku`, `opusplan` (Opus in plan mode, Sonnet for execution), `sonnet[1m]`, `opus[1m]`, `best`, or a full model ID like `claude-sonnet-4-6`. Invalid values (anything with shell metacharacters) are logged and ignored; the session launches on your account default. Takes effect on session creation — change the value and `/restart` from Telegram to apply.
 
 **Critical choice: `PROJECT_DIR`.** The Claude session runs with `--dangerously-skip-permissions`, so any message you send can read/write/delete anything under this directory. Rules:
 

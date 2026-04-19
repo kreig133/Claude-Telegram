@@ -30,6 +30,7 @@ TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 ALLOWED_CHAT_ID_RAW = os.getenv("ALLOWED_CHAT_ID")
 TMUX_SESSION = os.getenv("TMUX_SESSION", "claude-bridge")
 PROJECT_DIR = os.path.expanduser(os.getenv("PROJECT_DIR", "~/projects/qareen"))
+CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "default").strip() or "default"
 OUTPUT_STABLE_SECONDS = float(os.getenv("OUTPUT_STABLE_SECONDS", "3"))
 POLL_INTERVAL_SECONDS = float(os.getenv("POLL_INTERVAL_SECONDS", "1.0"))
 
@@ -83,12 +84,25 @@ async def session_exists() -> bool:
     return rc == 0
 
 
+MODEL_RE = re.compile(r"^[A-Za-z0-9_.\-\[\]]+$")
+
+
+def _claude_launch_cmd() -> str:
+    parts = ["claude", "--dangerously-skip-permissions"]
+    if CLAUDE_MODEL and CLAUDE_MODEL != "default":
+        if not MODEL_RE.match(CLAUDE_MODEL):
+            log.warning("ignoring invalid CLAUDE_MODEL=%r; using account default", CLAUDE_MODEL)
+        else:
+            parts += ["--model", CLAUDE_MODEL]
+    return " ".join(parts)
+
+
 async def create_session() -> None:
     Path(PROJECT_DIR).mkdir(parents=True, exist_ok=True)
     rc, _, err = await run_tmux(
         "new-session", "-d", "-s", TMUX_SESSION,
         "-c", PROJECT_DIR,
-        "claude --dangerously-skip-permissions",
+        _claude_launch_cmd(),
     )
     if rc != 0:
         raise RuntimeError(f"failed to create tmux session: {err.strip()}")
@@ -395,7 +409,7 @@ async def post_init(app: Application) -> None:
                 )
         except Exception:
             log.exception("failed to send startup banner")
-    log.info("bot ready; session=%s project=%s", TMUX_SESSION, PROJECT_DIR)
+    log.info("bot ready; session=%s project=%s model=%s", TMUX_SESSION, PROJECT_DIR, CLAUDE_MODEL)
 
 
 def main() -> None:
