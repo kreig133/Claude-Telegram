@@ -52,6 +52,26 @@ tmux new -d -s bridge-bot 'cd ~/code/claude-bridge && source .venv/bin/activate 
 
 On startup, if the target tmux session does not exist, the bot creates it and launches `claude --dangerously-skip-permissions` inside it, then posts the Claude banner to your chat as a readiness signal. If the session already exists, the bot attaches silently — you can restart `bot.py` without losing the Claude conversation.
 
+## Watching Claude from your Mac
+
+The bot runs the `claude` CLI inside a **detached** tmux session (`TMUX_SESSION`, default `claude-bridge`). It's terminal-only — not visible in the Claude Desktop app. To watch what Claude is doing live, attach from any terminal (Terminal.app, iTerm2, Ghostty, …):
+
+```bash
+tmux ls                             # list all sessions
+tmux attach -t claude-bridge        # attach to the Claude pane
+tmux kill-session -t claude-bridge  # force-reset (equivalent to /restart)
+```
+
+Inside an attached session:
+
+- `Ctrl-b` then `d` — detach (session keeps running)
+- `Ctrl-b` then `[` — enter scroll/copy mode (arrows, PgUp/PgDn; `q` to exit)
+- `Ctrl-b` then `?` — tmux keybinding help
+
+Attached, you'll see messages you send from Telegram typed into the pane via `send-keys` and Claude's output streaming in. **Do not type into the pane while the bot is waiting on Claude.** The bot polls pane state and diffs before/after output ([bot.py:180](bot.py)); stray keystrokes corrupt that diff and can send garbled replies to Telegram. Observe-only is safe.
+
+If you also run the bot itself under tmux (see *Run → Persistent*), its logs are in a separate session (`bridge-bot`). That's the bot process, not Claude.
+
 ## Commands
 
 - *(plain text)* — send to Claude; reply comes back when output stabilizes

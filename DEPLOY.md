@@ -302,6 +302,22 @@ If all four check out, deployment is complete.
 
 ## 9. Day-two operations
 
+**Watch Claude's pane live from the Mac.** The Claude CLI runs detached in tmux and is **not visible in the Claude Desktop app** — the two are separate products. Attach from any terminal:
+
+```bash
+tmux attach -t claude-bridge    # detach with Ctrl-b then d
+tmux ls                         # list all sessions
+```
+
+Useful keys once attached: `Ctrl-b d` detach, `Ctrl-b [` scroll mode (arrows / PgUp; `q` to exit), `Ctrl-b ?` keybinding help.
+
+**Do not type into the Claude pane while the bot is waiting on a reply.** The bot polls the pane and compares before/after snapshots to decide when output is stable ([bot.py:180](bot.py)). Keystrokes from a human while that loop is running will corrupt the diff and mangle the Telegram reply. Observing-only is always safe; interact via Telegram or only type into the pane when you know the bot isn't mid-handler (e.g. right after a reply has arrived).
+
+**Watch the bot process's own logs.**
+
+- Option 7a (bot in tmux): `tmux attach -t bridge-bot`
+- Option 7b (launchd): `tail -f ~/code/claude-bridge/bot.log`
+
 **Send Claude into a different project.** Stop the bot, change `PROJECT_DIR` in `.env`, `tmux kill-session -t claude-bridge`, restart the bot. The bot will create a fresh Claude session in the new directory.
 
 **Reset Claude's context without losing the session.** Send `/clear` from Telegram.
